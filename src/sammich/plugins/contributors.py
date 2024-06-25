@@ -71,13 +71,12 @@ def format_data(prs, issues, comments):
 
     # Formatting each user's data
     for user, counts in user_data.items():
-        row = (
+        rows.append(
             f"{user:<{max_user_length}}  "
             f"{counts['prs']:<{max_prs_length}}  "
             f"{counts['issues']:<{max_issues_length}}  "
             f"{counts['comments']:<{max_comments_length}}\n"
         )
-        rows.append(row)
 
     table = "".join(rows)
 
