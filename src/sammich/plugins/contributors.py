@@ -93,8 +93,6 @@ class ContributorPlugin(MachineBasePlugin):
 
     @command("/contributors")
     async def contributors(self, command):
-        channel_id = command._cmd_payload["channel_id"]
-        user = command._cmd_payload["user_id"]
         prs, issues, comments = fetch_github_data("OWASP-BLT", "BLT")
         formatted_data = format_data(prs, issues, comments)
         if not formatted_data:
@@ -102,6 +100,4 @@ class ContributorPlugin(MachineBasePlugin):
                 {"type": "section", "text": {"type": "mrkdwn", "text": "No data available"}}
             ]
 
-        await self.web_client.chat_postEphemeral(
-            channel=channel_id, user=user, blocks=formatted_data, text="Contributor data"
-        )
+        await command.say(text="Contributors Activity", blocks=formatted_data)
