@@ -5,10 +5,8 @@ description = ""
 authors = ["Sarthak5598 <sarthak5598sharma@gmail.com>"]
 readme = "README.md"
 
-packages = [{ include = "sammich"}]
-
 [tool.poetry.dependencies]
-python = "^3.10"\
+python = "^3.10"
 python-dotenv = "^1.0.1"
 gitpython = "^3.1.43"
 slack-sdk = "^3.27.2"
