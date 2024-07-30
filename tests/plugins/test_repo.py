@@ -44,9 +44,9 @@ class TestRepoCommand(unittest.TestCase):
         mock_ack.assert_called_once()
         mock_say.assert_called_once_with(
             text="Hello, you can implement your 'python' knowledge here:\n"
-                "https://github.com/OWASP-BLT/BLT\n"
-                "https://github.com/OWASP-BLT/BLT-Flutter\n"
-                "https://github.com/OWASP-BLT/BLT-Lettuce"
+            "https://github.com/OWASP-BLT/BLT\n"
+            "https://github.com/OWASP-BLT/BLT-Flutter\n"
+            "https://github.com/OWASP-BLT/BLT-Lettuce"
         )
 
     @mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(mock_repo_data)))
