@@ -1,0 +1,51 @@
+# Cloudflare Workers configuration for BLT-Sammich
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "blt-sammich"
+main = "worker.py"
+
+# Python Workers require this compatibility flag
+compatibility_flags = ["python_workers"]
+# Use a date that supports Python Workers
+compatibility_date = "2024-12-18"
+
+# ---------------------------------------------------------------------------
+# Static vars (non-sensitive) – override per environment below
+# ---------------------------------------------------------------------------
+[vars]
+GITHUB_REPO_OWNER = "OWASP-BLT"
+GITHUB_REPO_NAME  = "BLT-Sammich"
+
+# ---------------------------------------------------------------------------
+# KV Namespace
+# Pre-populate with:
+#   wrangler kv key put --binding BLT_DATA "projects" --path data/projects.json
+#   wrangler kv key put --binding BLT_DATA "repos"    --path data/repos.json
+# ---------------------------------------------------------------------------
+[[kv_namespaces]]
+binding    = "BLT_DATA"
+id         = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_YOUR_KV_NAMESPACE_PREVIEW_ID"
+
+# ---------------------------------------------------------------------------
+# Secrets (set via `wrangler secret put <NAME>` – never store values here)
+# ---------------------------------------------------------------------------
+# SLACK_SIGNING_SECRET
+# SLACK_BOT_TOKEN
+# GITHUB_TOKEN
+
+# ---------------------------------------------------------------------------
+# Routes – update to match your Workers domain / custom domain
+# ---------------------------------------------------------------------------
+# [[routes]]
+# pattern = "your-subdomain.workers.dev/*"
+# zone_name = "your-zone.com"
+
+# ---------------------------------------------------------------------------
+# Staging / production environments
+# ---------------------------------------------------------------------------
+[env.staging]
+name = "blt-sammich-staging"
+
+[env.production]
+name = "blt-sammich"

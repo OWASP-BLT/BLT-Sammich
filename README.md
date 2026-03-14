@@ -9,6 +9,7 @@
 - [Features](#-features)
 - [Architecture](#-architecture)
 - [Setup](#-setup)
+- [Cloudflare Worker Deployment](#-cloudflare-worker-deployment)
 - [Slack Commands](#-slack-commands)
 - [Local Development](#-local-development)
 - [Slash Commands](#-slash-commands)
@@ -247,6 +248,117 @@ In your Slack workspace, try:
 /repo python
 ```
 
+## ☁️ Cloudflare Worker Deployment
+
+The `cloudflare/` directory contains a **Python Cloudflare Worker** version of the bot.
+Instead of running persistently with Socket Mode, the worker receives Slack events via
+HTTP webhooks – making it serverless, globally distributed, and free to host on
+Cloudflare's free tier.
+
+### How It Differs from the Socket Mode Bot
+
+| | Socket Mode bot (`app.py`) | Cloudflare Worker (`cloudflare/worker.py`) |
+|---|---|---|
+| **Transport** | Persistent WebSocket connection | HTTP webhooks (POST requests) |
+| **Hosting** | Always-on server / container | Serverless – spun up per request |
+| **Config** | `.secrets` dotenv file | `wrangler secret put` + `wrangler.toml` |
+| **Data** | Local `data/*.json` files | Cloudflare KV with GitHub raw fallback |
+| **Runtime** | CPython | Pyodide (Python 3.12 on V8) |
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) ≥ 18 (for Wrangler CLI)
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/):
+  ```bash
+  npm install -g wrangler
+  wrangler login
+  ```
+- A Cloudflare account (free tier works)
+
+### 1. Create a Cloudflare KV Namespace
+
+```bash
+# Create the namespace
+wrangler kv namespace create BLT_DATA
+
+# Update cloudflare/wrangler.toml with the returned 'id'
+# Then upload the static data files
+wrangler kv key put --binding BLT_DATA "projects" --path data/projects.json
+wrangler kv key put --binding BLT_DATA "repos"    --path data/repos.json
+```
+
+### 2. Set Secrets
+
+```bash
+cd cloudflare
+wrangler secret put SLACK_SIGNING_SECRET   # from Slack App → Basic Information
+wrangler secret put SLACK_BOT_TOKEN        # xoxb-... from OAuth & Permissions
+wrangler secret put GITHUB_TOKEN           # GitHub PAT with repo scope
+```
+
+> **Getting `SLACK_SIGNING_SECRET`:** Slack App dashboard → **Basic Information** →
+> **App Credentials** → **Signing Secret**.
+
+### 3. Deploy
+
+```bash
+cd cloudflare
+wrangler deploy
+```
+
+Wrangler will print the public URL, e.g. `https://blt-sammich.<subdomain>.workers.dev`.
+
+### 4. Configure Slack Slash Commands
+
+In your Slack App dashboard → **Slash Commands**, update each command's
+**Request URL** to:
+
+| Command | Request URL |
+|---------|-------------|
+| `/contributors` | `https://blt-sammich.<subdomain>.workers.dev/slack/command` |
+| `/ghissue` | `https://blt-sammich.<subdomain>.workers.dev/slack/command` |
+| `/project` | `https://blt-sammich.<subdomain>.workers.dev/slack/command` |
+| `/repo` | `https://blt-sammich.<subdomain>.workers.dev/slack/command` |
+
+Also update **Interactivity & Shortcuts** → **Request URL** to:
+```
+https://blt-sammich.<subdomain>.workers.dev/slack/action
+```
+
+> **Socket Mode must be disabled** when using HTTP webhooks.
+> Go to **Socket Mode** in your Slack App settings and toggle it off.
+
+### 5. Verify the Deployment
+
+```bash
+# Health check
+curl https://blt-sammich.<subdomain>.workers.dev/
+
+# Expected: BLT-Sammich Slack Bot is running on Cloudflare Workers!
+```
+
+### Worker Architecture
+
+```
+Slack user types /contributors
+        │
+        │  HTTP POST /slack/command
+        ▼
+┌──────────────────────────────────┐
+│  Cloudflare Worker (worker.py)   │
+│  1. Verify Slack HMAC signature  │
+│  2. Parse slash command          │
+│  3. Call GitHub API              │
+│  4. Return Block Kit JSON        │
+└──────────────────────────────────┘
+        │
+        │  JSON response
+        ▼
+   Slack displays message
+```
+
+---
+
 ## 📚 Slack Commands
 
 This section documents each Slack command with purpose, example usage, and expected output.
@@ -431,6 +543,9 @@ BLT-Sammich/
 ├── data/
 │   ├── projects.json        # OWASP projects database
 │   └── repos.json          # Technology repository mapping
+├── cloudflare/
+│   ├── worker.py            # Python Cloudflare Worker (serverless)
+│   └── wrangler.toml        # Cloudflare Workers configuration
 ├── tests/                   # Unit tests
 └── pyproject.toml          # Poetry dependencies
 ```
