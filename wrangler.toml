@@ -2,12 +2,21 @@
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
 
 name = "blt-sammich"
-main = "worker.py"
+
+# Entry point: Python worker in src/
+main = "src/worker.py"
 
 # Python Workers require this compatibility flag
 compatibility_flags = ["python_workers"]
 # Use a date that supports Python Workers
 compatibility_date = "2024-12-18"
+
+# ---------------------------------------------------------------------------
+# Static assets
+# public/index.html is served automatically for GET /
+# ---------------------------------------------------------------------------
+[assets]
+directory = "./public"
 
 # ---------------------------------------------------------------------------
 # Static vars (non-sensitive) – override per environment below
@@ -24,7 +33,9 @@ GITHUB_REPO_NAME  = "BLT-Sammich"
 # ---------------------------------------------------------------------------
 [[kv_namespaces]]
 binding    = "BLT_DATA"
+# Run `wrangler kv namespace create BLT_DATA` and paste the returned id here
 id         = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+# Run `wrangler kv namespace create BLT_DATA --preview` and paste the returned id here
 preview_id = "REPLACE_WITH_YOUR_KV_NAMESPACE_PREVIEW_ID"
 
 # ---------------------------------------------------------------------------

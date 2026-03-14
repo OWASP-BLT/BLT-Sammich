@@ -20,16 +20,18 @@ KV Namespace bindings (configured in wrangler.toml [[kv_namespaces]]):
               "projects" -> contents of data/projects.json
               "repos"    -> contents of data/repos.json
 
-Routes (all accept POST with a verified Slack signature):
+Static assets (configured in wrangler.toml [assets]):
+    public/index.html is served automatically for GET /
+
+Routes handled by this worker (all accept POST with a verified Slack signature):
     POST /slack/command    -- Slack slash commands
     POST /slack/action     -- Slack interactive component payloads
-    GET  /                 -- Health check
 """
 
 import hashlib
-import math
 import hmac
 import json
+import math
 import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
@@ -368,13 +370,16 @@ async def _handle_action(payload: dict, env) -> dict:
 
 
 async def on_fetch(request, env):
-    """Cloudflare Workers entry point – routes incoming HTTP requests."""
+    """Cloudflare Workers entry point – routes incoming HTTP requests.
+
+    GET /              is served automatically from public/index.html via the
+                       [assets] binding in wrangler.toml.
+    POST /slack/command  Slack slash commands (signature-verified).
+    POST /slack/action   Slack interactive component callbacks (signature-verified).
+    """
     parsed = urlparse(request.url)
     path = parsed.path
     method = request.method
-
-    if method == "GET" and path == "/":
-        return _text_response("BLT-Sammich Slack Bot is running on Cloudflare Workers!")
 
     if method == "POST":
         raw_body = await request.text()

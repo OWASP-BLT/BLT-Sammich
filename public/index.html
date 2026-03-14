@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BLT-Sammich Slack Bot</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8f9fa;
+      color: #1d1c1d;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      max-width: 700px;
+      width: 100%;
+      padding: 3rem 2.5rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #e8f5e9;
+      color: #2e7d32;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      margin-bottom: 1.25rem;
+    }
+
+    .badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #43a047;
+      display: inline-block;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #616061;
+      margin-bottom: 2rem;
+      font-size: 1.05rem;
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #616061;
+      margin-bottom: 0.75rem;
+    }
+
+    .commands {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .command {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      background: #f8f9fa;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+    }
+
+    .command code {
+      background: #4a154b;
+      color: #ffffff;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.85rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .command p {
+      font-size: 0.9rem;
+      color: #616061;
+      line-height: 1.4;
+    }
+
+    .endpoints {
+      background: #f8f9fa;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .endpoints dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.4rem 1rem;
+    }
+
+    .endpoints dt {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #e01e5a;
+    }
+
+    .endpoints dd {
+      font-size: 0.85rem;
+      color: #616061;
+    }
+
+    .footer {
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: #9e9e9e;
+      text-align: center;
+    }
+
+    .footer a {
+      color: #4a154b;
+      text-decoration: none;
+    }
+
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">Running on Cloudflare Workers</div>
+
+    <h1>🥪 BLT-Sammich</h1>
+    <p class="subtitle">
+      A serverless Slack bot for the OWASP BLT community. Integrates with GitHub to track
+      contributors, manage projects, and discover OWASP resources — all from Slack.
+    </p>
+
+    <h2>Slash Commands</h2>
+    <div class="commands">
+      <div class="command">
+        <code>/contributors</code>
+        <p>Displays contributor activity for the OWASP-BLT/Lettuce repository over the last 7 days.</p>
+      </div>
+      <div class="command">
+        <code>/ghissue [title]</code>
+        <p>Creates a new GitHub issue in the configured repository directly from Slack.</p>
+      </div>
+      <div class="command">
+        <code>/project [name]</code>
+        <p>Retrieves information about OWASP projects. Browse 800+ projects interactively.</p>
+      </div>
+      <div class="command">
+        <code>/repo [technology]</code>
+        <p>Finds repositories based on technology stack or programming language.</p>
+      </div>
+    </div>
+
+    <h2>API Endpoints</h2>
+    <div class="endpoints">
+      <dl>
+        <dt>POST /slack/command</dt>
+        <dd>Receives Slack slash command payloads (HMAC-verified)</dd>
+        <dt>POST /slack/action</dt>
+        <dd>Receives Slack interactive component callbacks (HMAC-verified)</dd>
+        <dt>GET /</dt>
+        <dd>This page</dd>
+      </dl>
+    </div>
+
+    <p class="footer">
+      Part of <a href="https://github.com/OWASP-BLT/BLT-Sammich" target="_blank" rel="noopener">OWASP BLT-Sammich</a>
+      &nbsp;·&nbsp;
+      <a href="https://owasp.org/www-project-bug-logging-tool/" target="_blank" rel="noopener">OWASP BLT</a>
+    </p>
+  </div>
+</body>
+</html>
