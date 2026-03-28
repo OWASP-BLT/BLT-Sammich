@@ -669,6 +669,177 @@ async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
     return True, str(payload["html_url"])
 
 
+async def fetch_github_advisories(
+    owner: str,
+    repo: str,
+    env: Any,
+    limit: int = 5,
+) -> Tuple[bool, List[Dict[str, Any]]]:
+    token = env_value(env, "GITHUB_TOKEN")
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = "Bearer {0}".format(token)
+
+    url = "https://api.github.com/repos/{0}/{1}/security-advisories?{2}".format(
+        owner,
+        repo,
+        urlencode({"per_page": str(limit), "state": "published"}),
+    )
+    ok, payload, _ = await fetch_json(url, headers=headers)
+    if not ok:
+        return False, []
+    advisories = payload if isinstance(payload, list) else []
+    return True, advisories[:limit]
+
+
+def format_advisory_blocks(
+    owner: str,
+    repo: str,
+    advisories: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    repo_display = "{0}/{1}".format(owner, repo)
+    if not advisories:
+        text = "No published security advisories found for {0}.".format(repo_display)
+        return {
+            "response_type": "ephemeral",
+            "text": text,
+            "blocks": [make_section_block(text)],
+        }
+
+    blocks = [make_section_block("*Security Advisories for {0}*".format(repo_display))]
+    for advisory in advisories:
+        ghsa_id = advisory.get("ghsa_id") or "N/A"
+        summary = advisory.get("summary") or "No summary available."
+        severity = advisory.get("severity") or "unknown"
+        html_url = advisory.get("html_url") or ""
+        cve_id = advisory.get("cve_id") or ""
+
+        cve_text = " | CVE: {0}".format(cve_id) if cve_id else ""
+        link_text = " | <{0}|Details>".format(html_url) if html_url else ""
+        entry = "*{0}*{1} | Severity: {2}{3}\n{4}".format(
+            ghsa_id, cve_text, severity.upper(), link_text, summary
+        )
+        blocks.append(make_section_block(entry))
+
+    return {
+        "response_type": "ephemeral",
+        "text": "Security advisories for {0}.".format(repo_display),
+        "blocks": blocks,
+    }
+
+
+async def fetch_github_repo_activity(
+    owner: str,
+    repo: str,
+    env: Any,
+    days: int = 7,
+    limit: int = 5,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    token = env_value(env, "GITHUB_TOKEN")
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = "Bearer {0}".format(token)
+
+    since_stamp = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+    commits_url = "https://api.github.com/repos/{0}/{1}/commits?{2}".format(
+        owner,
+        repo,
+        urlencode({"since": since_stamp, "per_page": str(limit)}),
+    )
+    issues_url = "https://api.github.com/repos/{0}/{1}/issues?{2}".format(
+        owner,
+        repo,
+        urlencode(
+            {
+                "state": "open",
+                "sort": "created",
+                "direction": "desc",
+                "per_page": str(limit),
+                "since": since_stamp,
+            }
+        ),
+    )
+    prs_url = "https://api.github.com/repos/{0}/{1}/pulls?{2}".format(
+        owner,
+        repo,
+        urlencode({"state": "open", "sort": "created", "direction": "desc", "per_page": str(limit)}),
+    )
+
+    _, commits_payload, _ = await fetch_json(commits_url, headers=headers)
+    _, issues_payload, _ = await fetch_json(issues_url, headers=headers)
+    _, prs_payload, _ = await fetch_json(prs_url, headers=headers)
+
+    commits = commits_payload if isinstance(commits_payload, list) else []
+    raw_issues = issues_payload if isinstance(issues_payload, list) else []
+    issues = [item for item in raw_issues if "pull_request" not in item]
+    prs = prs_payload if isinstance(prs_payload, list) else []
+    return commits[:limit], issues[:limit], prs[:limit]
+
+
+def format_github_activity_blocks(
+    owner: str,
+    repo: str,
+    commits: List[Dict[str, Any]],
+    issues: List[Dict[str, Any]],
+    prs: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    repo_display = "{0}/{1}".format(owner, repo)
+    blocks = [
+        make_section_block("*Recent GitHub Activity for {0}*".format(repo_display))
+    ]
+
+    if commits:
+        lines = []
+        for commit in commits:
+            sha = (commit.get("sha") or "")[:7]
+            message = (
+                (commit.get("commit") or {}).get("message") or "No message"
+            ).split("\n")[0][:72]
+            author = (
+                (commit.get("author") or {}).get("login")
+                or (commit.get("commit") or {}).get("author", {}).get("name")
+                or "unknown"
+            )
+            url = commit.get("html_url") or ""
+            link = "<{0}|{1}>".format(url, sha) if url else sha
+            lines.append("• {0} by {1}: {2}".format(link, author, message))
+        blocks.append(make_section_block("*Commits*\n" + "\n".join(lines)))
+
+    if issues:
+        lines = []
+        for issue in issues:
+            number = issue.get("number") or ""
+            title = (issue.get("title") or "No title")[:72]
+            url = issue.get("html_url") or ""
+            user = (issue.get("user") or {}).get("login") or "unknown"
+            link = "<{0}|#{1}>".format(url, number) if url else "#{0}".format(number)
+            lines.append("• {0} by {1}: {2}".format(link, user, title))
+        blocks.append(make_section_block("*Open Issues*\n" + "\n".join(lines)))
+
+    if prs:
+        lines = []
+        for pr in prs:
+            number = pr.get("number") or ""
+            title = (pr.get("title") or "No title")[:72]
+            url = pr.get("html_url") or ""
+            user = (pr.get("user") or {}).get("login") or "unknown"
+            link = "<{0}|#{1}>".format(url, number) if url else "#{0}".format(number)
+            lines.append("• {0} by {1}: {2}".format(link, user, title))
+        blocks.append(make_section_block("*Open Pull Requests*\n" + "\n".join(lines)))
+
+    if not commits and not issues and not prs:
+        blocks.append(
+            make_section_block("No recent activity found for {0}.".format(repo_display))
+        )
+
+    return {
+        "response_type": "ephemeral",
+        "text": "Recent GitHub activity for {0}.".format(repo_display),
+        "blocks": blocks,
+    }
+
+
 def help_response() -> Dict[str, Any]:
     text = (
         "Available commands:\n"
@@ -676,6 +847,8 @@ def help_response() -> Dict[str, Any]:
         "• /project [name]\n"
         "• /repo [technology]\n"
         "• /ghissue [title]\n"
+        "• /ghactivity [owner/repo]\n"
+        "• /vuln [owner/repo]\n"
         "• /blt-app-url"
     )
     return {
@@ -901,6 +1074,49 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
         return blt_app_url_response(env)
     if command_name == "/blt":
         return help_response()
+    if command_name == "/ghactivity":
+        text = command_text.strip()
+        if "/" in text:
+            parts = text.split("/", 1)
+            owner, repo = parts[0].strip(), parts[1].strip()
+        else:
+            try:
+                owner = required_env_value(env, "GITHUB_ACTIVITY_OWNER")
+                repo = required_env_value(env, "GITHUB_ACTIVITY_REPO")
+            except ValueError as error:
+                return {
+                    "response_type": "ephemeral",
+                    "text": str(error),
+                    "blocks": [make_section_block(str(error))],
+                }
+        commits, issues, prs = await fetch_github_repo_activity(owner, repo, env)
+        return format_github_activity_blocks(owner, repo, commits, issues, prs)
+    if command_name == "/vuln":
+        text = command_text.strip()
+        if "/" in text:
+            parts = text.split("/", 1)
+            owner, repo = parts[0].strip(), parts[1].strip()
+        else:
+            try:
+                owner = required_env_value(env, "GITHUB_ACTIVITY_OWNER")
+                repo = required_env_value(env, "GITHUB_ACTIVITY_REPO")
+            except ValueError as error:
+                return {
+                    "response_type": "ephemeral",
+                    "text": str(error),
+                    "blocks": [make_section_block(str(error))],
+                }
+        ok, advisories = await fetch_github_advisories(owner, repo, env)
+        if not ok:
+            message = "Unable to fetch security advisories for {0}/{1}.".format(
+                owner, repo
+            )
+            return {
+                "response_type": "ephemeral",
+                "text": message,
+                "blocks": [make_section_block(message)],
+            }
+        return format_advisory_blocks(owner, repo, advisories)
 
     return {
         "response_type": "ephemeral",
