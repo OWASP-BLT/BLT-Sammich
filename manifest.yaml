@@ -42,6 +42,16 @@ features:
       url: https://sammich.owaspblt.org/slack/commands/
       description: Return the Slack app management URL
       should_escape: false
+    - command: /ghactivity
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Show recent GitHub activity (commits, issues, PRs)
+      usage_hint: "[owner/repo]"
+      should_escape: false
+    - command: /vuln
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Show published security advisories for a GitHub repository
+      usage_hint: "[owner/repo]"
+      should_escape: false
 oauth_config:
   redirect_urls:
     - https://sammich.owaspblt.org/oauth/slack/callback

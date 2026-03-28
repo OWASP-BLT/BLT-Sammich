@@ -141,3 +141,110 @@ def test_build_slack_install_url_uses_required_env_vars():
     assert "state=state-token" in install_url
     assert "scope=commands%2Cchat%3Awrite" in install_url
     assert "user_scope=users%3Aread" in install_url
+
+
+def test_format_advisory_blocks_with_advisories():
+    advisories = [
+        {
+            "ghsa_id": "GHSA-1234-5678-9012",
+            "summary": "Remote code execution vulnerability",
+            "severity": "critical",
+            "html_url": "https://github.com/advisories/GHSA-1234-5678-9012",
+            "cve_id": "CVE-2024-12345",
+        }
+    ]
+    response = worker.format_advisory_blocks("OWASP-BLT", "BLT", advisories)
+    assert "OWASP-BLT/BLT" in response["text"]
+    assert response["blocks"]
+    block_text = response["blocks"][1]["text"]["text"]
+    assert "GHSA-1234-5678-9012" in block_text
+    assert "CVE-2024-12345" in block_text
+    assert "CRITICAL" in block_text
+    assert "Remote code execution vulnerability" in block_text
+
+
+def test_format_advisory_blocks_empty():
+    response = worker.format_advisory_blocks("OWASP-BLT", "BLT", [])
+    assert "No published security advisories" in response["text"]
+    assert response["blocks"]
+
+
+def test_format_advisory_blocks_without_optional_fields():
+    advisories = [
+        {
+            "ghsa_id": "GHSA-0000-0000-0000",
+            "summary": "Minimal advisory",
+            "severity": "low",
+        }
+    ]
+    response = worker.format_advisory_blocks("owner", "repo", advisories)
+    assert response["blocks"]
+    block_text = response["blocks"][1]["text"]["text"]
+    assert "GHSA-0000-0000-0000" in block_text
+    assert "LOW" in block_text
+
+
+def test_format_github_activity_blocks_with_all_data():
+    commits = [
+        {
+            "sha": "abc1234def",
+            "commit": {"message": "Fix security bug\n\nDetails here", "author": {"name": "alice"}},
+            "author": {"login": "alice"},
+            "html_url": "https://github.com/OWASP-BLT/BLT/commit/abc1234def",
+        }
+    ]
+    issues = [
+        {
+            "number": 42,
+            "title": "Security issue found",
+            "html_url": "https://github.com/OWASP-BLT/BLT/issues/42",
+            "user": {"login": "bob"},
+        }
+    ]
+    prs = [
+        {
+            "number": 10,
+            "title": "Add vulnerability scanner",
+            "html_url": "https://github.com/OWASP-BLT/BLT/pull/10",
+            "user": {"login": "charlie"},
+        }
+    ]
+    response = worker.format_github_activity_blocks(
+        "OWASP-BLT", "BLT", commits, issues, prs
+    )
+    assert "OWASP-BLT/BLT" in response["text"]
+    assert len(response["blocks"]) == 4
+    commits_block = response["blocks"][1]["text"]["text"]
+    assert "alice" in commits_block
+    assert "Fix security bug" in commits_block
+    issues_block = response["blocks"][2]["text"]["text"]
+    assert "bob" in issues_block
+    assert "Security issue found" in issues_block
+    prs_block = response["blocks"][3]["text"]["text"]
+    assert "charlie" in prs_block
+    assert "Add vulnerability scanner" in prs_block
+
+
+def test_format_github_activity_blocks_empty():
+    response = worker.format_github_activity_blocks("OWASP-BLT", "BLT", [], [], [])
+    assert "OWASP-BLT/BLT" in response["text"]
+    assert "No recent activity" in response["blocks"][-1]["text"]["text"]
+
+
+def test_format_github_activity_blocks_renders_passed_issues():
+    commits = []
+    issues = [
+        {"number": 1, "title": "Real issue", "user": {"login": "alice"}, "html_url": ""},
+        {"number": 2, "title": "Another issue", "user": {"login": "bob"}, "html_url": ""},
+    ]
+    prs = []
+    response = worker.format_github_activity_blocks("owner", "repo", commits, issues, prs)
+    issues_block = response["blocks"][1]["text"]["text"]
+    assert "Real issue" in issues_block
+    assert "Another issue" in issues_block
+
+
+def test_help_response_includes_new_commands():
+    response = worker.help_response()
+    assert "/ghactivity" in response["text"]
+    assert "/vuln" in response["text"]
