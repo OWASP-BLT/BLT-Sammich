@@ -324,6 +324,7 @@ def make_project_detail(project_name: str) -> Optional[str]:
 
 
 def search_projects(query: str, limit: int = 10) -> List[str]:
+    """Search for projects in the PROJECT_DATA dictionary."""
     normalized = query.strip().lower()
     if not normalized:
         return []
@@ -334,7 +335,6 @@ def search_projects(query: str, limit: int = 10) -> List[str]:
         if len(matches) >= limit:
             break
     return matches
-
 
 def make_repo_detail(technology: str) -> Optional[str]:
     repos = REPO_DATA.get(technology)
