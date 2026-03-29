@@ -899,7 +899,7 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
         }
     if command_name == "/blt-app-url":
         return blt_app_url_response(env)
-    if command_name == "/blt":
+    if command_name in ("/blt", "/help"):
         return help_response()
 
     return {
