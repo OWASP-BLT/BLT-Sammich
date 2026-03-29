@@ -91,7 +91,7 @@ Searches and browses OWASP repositories.
 
 ### Plugins Architecture
 
-BLT-Sammich is built with a modular plugin system designed to run efficently at the edge:
+BLT-Sammich is built with a modular plugin system designed to run efficiently at the edge:
 
 1. **Contributors Plugin** (`src/sammich/plugins/contributors.py`)
    - Fetches GitHub data via REST API
@@ -106,7 +106,7 @@ BLT-Sammich is built with a modular plugin system designed to run efficently at 
 3. **Reminder Plugin** (`src/sammich/plugins/reminder.py`)
    - Parse natural language time expressions
    - Formats scheduled messages for channels
-   - *(Note: Currently being adapted from background tasks to Cloudflare Cron Triggers for the serverless environment)* 
+   - *(Note: Currently **disabled**; planned migration from background tasks to Cloudflare Cron Triggers)* 
 
 ### Data Files
 
@@ -118,7 +118,7 @@ BLT-Sammich is built with a modular plugin system designed to run efficently at 
 ### Tech Stack
 - **Edge Runtime:** Cloudflare Python Workers (Pyodide) - A zero-dependency, event-driven model that runs Python natively in the V8 engine
 - **Database:** Cloudflare D1 (Serverless SQLite)
-- **GitHub Integration:** Edge compatible REST requests
+- **GitHub Integration:** Edge-compatible REST requests
 - **Deployment & Testing:** Wrangler (`npx wrangler`) 
 
 ### How It Connects to Main BLT
@@ -148,99 +148,7 @@ BLT-Sammich is built with a modular plugin system designed to run efficently at 
 
 ## 🚀 Setup
 
-### Prerequisites
-- Python 3.10+
-- Poetry (for dependency management)
-- Slack workspace with admin access
-- GitHub account and token
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/OWASP-BLT/BLT-Sammich.git
-cd BLT-Sammich
-```
-
-### 2. Install Dependencies
-```bash
-poetry install
-```
-
-### 3. Create Slack App
-
-1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
-2. Click "Create New App" → "From scratch"
-3. Name your app (e.g., "BLT-Sammich Dev") and select your workspace
-
-### 4. Configure Slack App Permissions
-
-Navigate to **OAuth & Permissions** and add these Bot Token Scopes:
-- `commands` - Create and handle slash commands
-- `chat:write` - Send messages
-- `users:read` - Read user information
-- `channels:read` - View channels
-- `groups:read` - View private channels
-- `im:read` - View direct messages
-- `mpim:read` - View group direct messages
-
-### 5. Enable Socket Mode
-
-1. Go to **Socket Mode** in your app settings
-2. Enable Socket Mode
-3. Generate an App-Level Token with `connections:write` scope
-4. Save the token (starts with `xapp-`)
-
-### 6. Create Slash Commands
-
-Go to **Slash Commands** and create:
-- `/contributors` - URL: `https://your-server.com` (or use Socket Mode)
-- `/ghissue` - URL: `https://your-server.com`
-- `/project` - URL: `https://your-server.com`
-- `/repo` - URL: `https://your-server.com`
-
-### 7. Install App to Workspace
-
-1. Go to **Install App**
-2. Click "Install to Workspace"
-3. Authorize the requested permissions
-4. Save the Bot User OAuth Token (starts with `xoxb-`)
-
-### 8. Configure Environment Variables
-
-Create a `.secrets` file in the project root:
-```bash
-cp .secrets.sample .secrets
-```
-
-Edit `.secrets` with your credentials:
-```bash
-SLACK_APP_TOKEN=xapp-your-app-level-token
-SLACK_BOT_TOKEN=xoxb-your-bot-user-oauth-token
-GITHUB_TOKEN=ghp_your-github-personal-access-token
-```
-
-**Getting a GitHub Token:**
-1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Generate new token with `repo` and `user` scopes
-3. Copy the token to your `.secrets` file
-
-### 9. Run the Bot
-```bash
-poetry run python app.py
-```
-
-You should see:
-```
-⚡️ Bolt app is running!
-```
-
-### 10. Test the Bot
-
-In your Slack workspace, try:
-```
-/contributors
-/project
-/repo python
-```
+For initial setup and local development instructions, see the **[Local Development](#-local-development)** section below.
 
 ## 📚 Slack Commands
 
@@ -318,10 +226,10 @@ This section explains how to run the BLT-Sammich Slack bot locally for developme
 
 - **Node.js & npm** - [Download Node.js](https://nodejs.org/en/download/). This is required to run Wrangler.
 - **Slack workspace** with admin access to create and configure a Slack app.
-- **Github account**
+- **GitHub account**
 with a Personal Access Token (for `/ghissue` and `/contributors` commands)
 - **Python 3.10+** — [Download Python](https://www.python.org/downloads/)
-- **Wrangler** - For dependency management. Install via: `npm install -g wrangler`
+- **Wrangler** - CLI for developing, testing, and deploying Cloudflare Workers. Install via: `npm install -g wrangler`
 
 ### Steps to run locally
 **1.Clone the repository**
@@ -363,7 +271,7 @@ You should see:
 [wrangler:info] Ready on http://127.0.0.1:8787
 ```
 
-The bot uses **Cloudflare Workers** natively, so you can test it locally without a public URL.
+The bot uses **Cloudflare Workers** natively. For local development, `wrangler dev` creates a local server, but to test Slack commands and webhooks, you must expose your local server using a tunnel like **ngrok** or **cloudflared** (see Troubleshooting).
 
 ### Troubleshooting
 
