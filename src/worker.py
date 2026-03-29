@@ -672,11 +672,12 @@ async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
 def help_response() -> Dict[str, Any]:
     text = (
         "Available commands:\n"
-        "• /contributors or /stats\n"
-        "• /project [name]\n"
-        "• /repo [technology]\n"
-        "• /ghissue [title]\n"
-        "• /blt-app-url"
+        "• /help or /blt - Show this menu\n"
+        "• /contributors or /stats - Activity tracking\n"
+        "• /project [name] - Find OWASP project info\n"
+        "• /repo [technology] - Find repos by tech\n"
+        "• /ghissue [title] - Create GitHub issue\n"
+        "• /gsoc - GSoC 2026 ideas"
     )
     return {
         "response_type": "ephemeral",
@@ -880,7 +881,7 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
         return discover_response(command_text)
     if command_name == "/contrib":
         return contrib_response()
-    if command_name == "/gsoc25":
+    if command_name in ("/gsoc", "/gsoc25", "/gsoc26"):
         return {
             "response_type": "ephemeral",
             "text": "Use /discover with a technology or mentor keyword to explore matches.",
@@ -899,7 +900,7 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
         }
     if command_name == "/blt-app-url":
         return blt_app_url_response(env)
-    if command_name == "/blt":
+    if command_name in ("/blt", "/help"):
         return help_response()
 
     return {
