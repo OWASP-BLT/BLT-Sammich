@@ -652,22 +652,55 @@ async def fetch_contributor_activity(env: Any) -> List[Dict[str, Any]]:
 
 
 async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
-    # Fetch environment variables
-    token = env_value(env, "GITHUB_TOKEN")
+    """
+    Creates a GitHub issue with pre-flight normalization and validation.
+    Hardened to handle whitespace-only inputs and missing configuration (Fixes Finding 656-669).
+    """
+    # 1. Fetch and normalize environment variables (Null-safe trim)
+    token = (env_value(env, "GITHUB_TOKEN") or "").strip()
     
-    # Pre-flight validation to save API calls
+    # 2. Pre-flight validation for Configuration
     if not token:
-        return False, "Configuration Error: GITHUB_TOKEN is missing in the environment."
+        return False, "Configuration Error: GITHUB_TOKEN is missing or empty in the environment."
     
-    if not title or not title.strip():
-        return False, "Issue title cannot be empty."
+    # 3. Validate and trim the user-provided title
+    title = (title or "").strip()
+    if not title:
+        return False, "Issue title cannot be empty or consist only of whitespace."
     
     try:
-        owner = required_env_value(env, "GITHUB_ISSUE_OWNER")
-        repo = required_env_value(env, "GITHUB_ISSUE_REPO")
-    except ValueError as error:
+        # 4. Fetch and normalize repo/owner info from required env values
+        owner = required_env_value(env, "GITHUB_ISSUE_OWNER").strip()
+        repo = required_env_value(env, "GITHUB_ISSUE_REPO").strip()
+    except (ValueError, AttributeError) as error:
         return False, f"Configuration Error: {str(error)}. Please check your .secrets or Cloudflare settings."
 
+    # 5. Execute API Call
+    url = f"https://api.github.com/repos/{owner}/{repo}/issues"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "OWASP-BLT-Sammich-Bot"
+    }
+    payload = {"title": title}
+
+    try:
+        ok, body, error_msg = await fetch_json(
+            url, 
+            method="POST", 
+            headers=headers, 
+            body=json.dumps(payload)
+        )
+        
+        if ok and body:
+            issue_url = body.get("html_url")
+            return True, issue_url
+        else:
+            return False, f"GitHub API Error: {error_msg or 'Unknown Error'}"
+            
+    except Exception as e:
+        return False, f"System Error: {str(e)}"
+        
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
     headers = {
         "Accept": "application/vnd.github+json",
