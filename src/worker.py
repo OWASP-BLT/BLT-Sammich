@@ -860,8 +860,15 @@ def project_response(text: str) -> Dict[str, Any]:
 
 
 def repo_response(text: str) -> Dict[str, Any]:
-    technology = text.strip().lower()
+    """
+    Handles the /repo command with hardened input normalization 
+    and multi-stage lookup (Direct -> Similar -> Selection).
+    """
+    # Finding Fix: Standardized normalization with null-safe check
+    technology = (text or "").strip().lower()
+
     if technology:
+        # 1. Attempt Direct Match
         detail = make_repo_detail(technology)
         if detail:
             return {
@@ -869,27 +876,35 @@ def repo_response(text: str) -> Dict[str, Any]:
                 "text": detail,
                 "blocks": [make_section_block(detail)],
             }
+            
+        # 2. Attempt Fuzzy/Similar Matches
         matches = search_repo_technologies(technology)
         if matches:
             return {
                 "response_type": "ephemeral",
                 "text": "Technology not found. Similar matches are available.",
                 "blocks": [
-                    make_section_block("Similar technologies:\n" + "\n".join(matches))
+                    make_section_block("⚠️ *Technology not found.* Similar matches:"),
+                    make_section_block("\n".join([f"• `{m}`" for m in matches]))
                 ],
             }
+            
+        # 3. No matches found
         return {
             "response_type": "ephemeral",
             "text": "Technology not found.",
-            "blocks": [make_section_block("Technology not found.")],
+            "blocks": [
+                make_section_block("❌ *Technology not found.*"),
+                make_context_block("Try searching for a different stack like 'MERN' or 'Kotlin'.")
+            ],
         }
 
+    # 4. Default state: Show the selection menu
     return {
         "response_type": "ephemeral",
         "text": "Choose a technology to inspect.",
         "blocks": build_repo_selection_blocks(REPO_DATA),
     }
-
 
 async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
     command_name = form.get("command", "")
