@@ -451,7 +451,18 @@ def summarize_contributors(
     rows.sort(key=lambda row: (-row["total"], row["user"]))
     return rows
 
-
+def make_context_block(text: str) -> Dict[str, Any]:
+    """Helper to create a Slack context block for metadata or footnotes."""
+    return {
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": text
+            }
+        ]
+    }
+    
 async def fetch_json(
     url: str,
     method: str = "GET",
