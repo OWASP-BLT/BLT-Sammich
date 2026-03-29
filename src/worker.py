@@ -405,14 +405,17 @@ async def store_reminder(user_id: str, channel_id: str, message: str, remind_at:
 
 
 async def process_pending_reminders(env: Any):
-    """Scan D1 for pending reminders that are due and send them to Slack."""
+    """
+    Scan D1 for pending reminders that are due and send them to Slack.
+    Hardened to inspect Slack's internal 'ok' flag in the response body.
+    """
     now = int(time.time())
     try:
-        # Fetch pending reminders
+        # 1. Fetch pending reminders that have reached their 'remind_at' time
         query = "SELECT * FROM reminders WHERE status = 'pending' AND remind_at <= ?"
         rows = await env.DB.prepare(query).bind(now).all()
         
-        if not rows.results:
+        if not rows or not rows.results:
             return
 
         token = env_value(env, "SLACK_BOT_TOKEN")
@@ -420,14 +423,14 @@ async def process_pending_reminders(env: Any):
             return
 
         for reminder in rows.results:
-            # Send the message to Slack
+            # 2. Prepare Slack message payload
             msg_text = ":alarm_clock: *Reminder:* {0}".format(reminder["message"])
             url = "https://slack.com/api/chat.postMessage"
             headers = {
                 "Authorization": "Bearer {0}".format(token),
                 "Content-Type": "application/json",
             }
-            body = {
+            body_payload = {
                 "channel": reminder["channel_id"],
                 "text": "<@{0}> {1}".format(reminder["user_id"], msg_text),
                 "blocks": [
@@ -435,10 +438,27 @@ async def process_pending_reminders(env: Any):
                 ],
             }
             
-            ok, _, _ = await fetch_json(url, method="POST", headers=headers, body=json.dumps(body))
+            # 3. Capture the full response (http_ok, parsed_body, error_msg)
+            # Finding Fix: We capture 'slack_response' to inspect the internal 'ok' flag
+            http_ok, slack_response, error_msg = await fetch_json(
+                url, 
+                method="POST", 
+                headers=headers, 
+                body=json.dumps(body_payload)
+            )
             
-            # Mark as sent or failed
-            new_status = "sent" if ok else "failed"
+            # 4. Use Slack-level success flag to determine status
+            is_sent = http_ok and slack_response and slack_response.get("ok") is True
+            
+            if is_sent:
+                new_status = "sent"
+            else:
+                new_status = "failed"
+                # Log the specific Slack error (e.g., 'channel_not_found') for debugging
+                slack_err = slack_response.get("error") if slack_response else error_msg
+                print(f"Reminder ID {reminder['id']} failed: {slack_err}")
+            
+            # 5. Update the DB with the validated status
             update_query = "UPDATE reminders SET status = ? WHERE id = ?"
             await env.DB.prepare(update_query).bind(new_status, reminder["id"]).run()
             
