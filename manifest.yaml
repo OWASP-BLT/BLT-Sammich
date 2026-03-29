@@ -34,6 +34,10 @@ features:
       url: https://sammich.owaspblt.org/slack/commands/
       description: On development
       should_escape: false
+    - command: /help
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: On development
+      should_escape: false
     - command: /installed_apps
       url: https://sammich.owaspblt.org/slack/commands/
       description: List installed apps
@@ -42,6 +46,27 @@ features:
       url: https://sammich.owaspblt.org/slack/commands/
       description: Return the Slack app management URL
       should_escape: false
+    - command: /ghissue
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Create GitHub issue
+      usage_hint: "[title]"
+      should_escape: false
+    - command: /project
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Get project info
+      usage_hint: "[name]"
+      should_escape: false
+    - command: /repo
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Get repo info
+      usage_hint: "[technology]"
+      should_escape: false
+    - command: /contributors
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Get contributors info
+      usage_hint: "[name]"
+      should_escape: false
+    
 oauth_config:
   redirect_urls:
     - https://sammich.owaspblt.org/oauth/slack/callback

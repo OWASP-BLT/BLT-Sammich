@@ -672,12 +672,11 @@ async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
 def help_response() -> Dict[str, Any]:
     text = (
         "Available commands:\n"
-        "• /help or /blt - Show this menu\n"
-        "• /contributors or /stats - Activity tracking\n"
-        "• /project [name] - Find OWASP project info\n"
-        "• /repo [technology] - Find repos by tech\n"
-        "• /ghissue [title] - Create GitHub issue\n"
-        "• /gsoc - GSoC 2026 ideas"
+        "• /contributors or /stats\n"
+        "• /project [name]\n"
+        "• /repo [technology]\n"
+        "• /ghissue [title]\n"
+        "• /blt-app-url"
     )
     return {
         "response_type": "ephemeral",
@@ -881,7 +880,7 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
         return discover_response(command_text)
     if command_name == "/contrib":
         return contrib_response()
-    if command_name in ("/gsoc", "/gsoc25", "/gsoc26"):
+    if command_name == "/gsoc25":
         return {
             "response_type": "ephemeral",
             "text": "Use /discover with a technology or mentor keyword to explore matches.",
