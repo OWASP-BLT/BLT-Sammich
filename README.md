@@ -89,24 +89,23 @@ Searches and browses OWASP repositories.
 
 **Why not in BLT-Sammich?** This feature was developed directly in the main BLT repository as part of the integration.
 
-### Plugins Architecture
+### 🏗️ Bot Architecture
+`BLT-Sammich` is built as a unified Cloudflare Worker. All core logic is orchestrated through a high-performance entry point (`src/worker.py`). This architecture is optimized for the edge runtime, ensuring minimal latency and high availability across the global OWASP community.
 
-BLT-Sammich is built with a modular plugin system designed to run efficiently at the edge:
+#### 🧩 Integrated Logic Modules
 
-1. **Contributors Plugin** (`src/sammich/plugins/contributors.py`)
-   - Fetches GitHub data via REST API
-   - Formats contributor statistics
-   - Displays activity in formatted tables
-
-2. **Project Plugin** (`src/sammich/plugins/project.py`)
-   - Manages OWASP project database lookups natively on the edge
-   - Handles pagination for large datasets
-   - Returns interactive Slack UI components
-
-3. **Reminder Plugin** (`src/sammich/plugins/reminder.py`)
-   - Parse natural language time expressions
-   - Formats scheduled messages for channels
-   - *(Note: Currently **disabled**; planned migration from background tasks to Cloudflare Cron Triggers)* 
+* **Contributor Activity Handler** (`src/worker.py`)
+    * Fetches real-time GitHub activity data via the REST API.
+    * Aggregates and formats contributor statistics into rich Slack tables and Block Kit responses.
+* **OWASP Project Discovery** (`src/worker.py`)
+    * Manages the curated database of over 800+ OWASP projects.
+    * Handles high-speed searching and interactive pagination directly in the Slack UI.
+* **GitHub Issue Integration** (`src/worker.py`)
+    * Provides hardened logic for creating community issues directly from Slack slash commands.
+    * Includes pre-flight environment validation and detailed API error reporting for a "production-grade" developer experience.
+* **Edge-Native Reminders** (`src/worker.py`)
+    * **[NEW]** Leverages **Cloudflare Cron Triggers** and **D1 SQL** for persistent, scheduled user alerts.
+    * Features a natural language time parser for intuitive user interaction.
 
 ### Data Files
 
