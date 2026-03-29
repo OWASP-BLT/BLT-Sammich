@@ -309,7 +309,7 @@ This section documents each Slack command with purpose, example usage, and expec
 
 | Command | Description | Example | Available In |
 |---------|-------------|---------|--------------|
-| `/contributors` | Show recent contributor activity | `/contributors` | BLT-Sammich only |
+| `/stats` or `/contributors` | Show recent contributor activity | `/stats` | BLT-Sammich only |
 | `/ghissue [title]` | Create GitHub issue | `/ghissue Bug in login form` | BLT-Sammich only |
 | `/project [name]` | Find OWASP project info | `/project zap` | BLT-Sammich only |
 | `/repo [tech]` | Find repos by technology | `/repo python` | BLT-Sammich only |
