@@ -217,7 +217,7 @@ This section documents each Slack command with purpose, example usage, and expec
 | `/project [name]` | Find OWASP project info | `/project zap` | BLT-Sammich only |
 | `/repo [tech]` | Find repos by technology | `/repo python` | BLT-Sammich only |
 | `/discover [term]` | Search all OWASP repos | `/discover security` | Main BLT only |
-| `/help [term]` | Show help menu | `/help` | BLT-Sammich only |
+| `/help` | Show bot help and command documentation | `/help` | BLT-Sammich only |
 
 
 ## 🧑‍💻 Local Development
