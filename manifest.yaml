@@ -64,7 +64,6 @@ features:
     - command: /contributors
       url: https://sammich.owaspblt.org/slack/commands/
       description: Get contributors info
-      usage_hint: "[name]"
       should_escape: false
     
 oauth_config:
