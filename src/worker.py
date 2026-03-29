@@ -641,31 +641,44 @@ async def fetch_contributor_activity(env: Any) -> List[Dict[str, Any]]:
 
 
 async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
+    # Fetch environment variables
     token = env_value(env, "GITHUB_TOKEN")
+    
+    # Pre-flight validation to save API calls
     if not token:
-        return False, "Set GITHUB_TOKEN to enable /ghissue."
-
+        return False, "Configuration Error: GITHUB_TOKEN is missing in the environment."
+    
+    if not title or not title.strip():
+        return False, "Issue title cannot be empty."
+    
     try:
         owner = required_env_value(env, "GITHUB_ISSUE_OWNER")
         repo = required_env_value(env, "GITHUB_ISSUE_REPO")
     except ValueError as error:
-        return False, str(error)
+        return False, f"Configuration Error: {str(error)}. Please check your .secrets or Cloudflare settings."
 
-    url = "https://api.github.com/repos/{0}/{1}/issues".format(owner, repo)
+    url = f"https://api.github.com/repos/{owner}/{repo}/issues"
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": "Bearer {0}".format(token),
         "Content-Type": "application/json",
+        "User-Agent": "BLT-Sammich-Bot",
     }
     ok, payload, _ = await fetch_json(
         url,
         method="POST",
         headers=headers,
-        body=json.dumps({"title": title}),
+        body=json.dumps({"title": title.strip()}),
     )
-    if not ok or not payload.get("html_url"):
-        message = payload.get("message") or "GitHub issue creation failed."
-        return False, message
+    if not ok or not isinstance(payload, dict) or not payload.get("html_url"):
+        base_message = payload.get("message", "Unknown API error occurred.") if isinstance(payload, dict) else "Invalid API response."
+        
+        # GitHub often returns specific validation errors in an 'errors' array
+        if isinstance(payload, dict) and "errors" in payload:
+            error_details = ", ".join([e.get("message", e.get("code", str(e))) for e in payload["errors"] if isinstance(e, dict)])
+            if error_details:
+                base_message = f"{base_message} Details: {error_details}"
+        return False, f"GitHub issue creation failed: {base_message}"
     return True, str(payload["html_url"])
 
 
@@ -854,23 +867,29 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
             return {
                 "response_type": "ephemeral",
                 "text": "Usage: /ghissue <title>",
-                "blocks": [make_section_block("Usage: `/ghissue <title>`")],
+                "blocks": [
+                    make_section_block("📝 Create GitHub Issue"),
+                    make_section_block("Usage: `/ghissue <title>`\n*Example:*`/ghissue Fix broken login button`"),
+                ],
             }
         ok, message = await create_github_issue(title, env)
-        if ok:
+        if not ok:
             return {
                 "response_type": "ephemeral",
-                "text": "Issue created successfully: {0}".format(message),
+                "text": f"Error: {message}",
                 "blocks": [
-                    make_section_block(
-                        "Issue created successfully:\n{0}".format(message)
-                    )
+                    make_section_block("⚠️ Issue Creation Failed"),
+                    make_section_block(f"Something went wrong while communicating with GitHub:\n\n*{message}*"),
+                    make_context_block("Please contact an admin if this error persists.")
                 ],
             }
         return {
             "response_type": "ephemeral",
-            "text": message,
-            "blocks": [make_section_block(message)],
+            "text": f"Issue created successfully: {message}",
+            "blocks": [
+                make_section_block("✅ Issue Created"),
+                make_context_block(f"Successfully created your issue on GitHub:\n<{message}|View Issue on GitHub>")
+            ],
         }
     if command_name == "/project":
         return project_response(command_text)
@@ -899,7 +918,7 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
         }
     if command_name == "/blt-app-url":
         return blt_app_url_response(env)
-    if command_name == "/blt":
+    if command_name in ("/blt", "/help"):
         return help_response()
 
     return {
