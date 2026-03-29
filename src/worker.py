@@ -352,8 +352,93 @@ def search_repo_technologies(query: str, limit: int = 10) -> List[str]:
         if normalized in tech_name:
             matches.append(tech_name)
         if len(matches) >= limit:
-            break
-    return matches
+            return matches
+
+
+def parse_time_offset(text: str) -> Optional[int]:
+    """Parse a time offset string like 'in 5 minutes' and return the Unix timestamp."""
+    text = text.lower().strip()
+    if not text.startswith("in "):
+        return None
+    
+    try:
+        # Extract the parts, e.g., 'in', '5', 'minutes'
+        parts = text.split()
+        if len(parts) < 3:
+            return None
+            
+        value = int(parts[1])
+        unit = parts[2]
+        
+        seconds = 0
+        if "minute" in unit:
+            seconds = value * 60
+        elif "hour" in unit:
+            seconds = value * 3600
+        elif "day" in unit:
+            seconds = value * 86400
+        else:
+            return None
+            
+        return int(time.time()) + seconds
+    except (ValueError, IndexError):
+        return None
+
+
+async def store_reminder(user_id: str, channel_id: str, message: str, remind_at: int, env: Any) -> bool:
+    """Store a reminder in the Cloudflare D1 database."""
+    try:
+        query = (
+            "INSERT INTO reminders (user_id, channel_id, message, remind_at, status) "
+            "VALUES (?, ?, ?, ?, 'pending')"
+        )
+        await env.DB.prepare(query).bind(user_id, channel_id, message, remind_at).run()
+        return True
+    except Exception as error:
+        log_exception_one_line(error, "d1_reminder_storage_error")
+        return False
+
+
+async def process_pending_reminders(env: Any):
+    """Scan D1 for pending reminders that are due and send them to Slack."""
+    now = int(time.time())
+    try:
+        # Fetch pending reminders
+        query = "SELECT * FROM reminders WHERE status = 'pending' AND remind_at <= ?"
+        rows = await env.DB.prepare(query).bind(now).all()
+        
+        if not rows.results:
+            return
+
+        token = env_value(env, "SLACK_BOT_TOKEN")
+        if not token:
+            return
+
+        for reminder in rows.results:
+            # Send the message to Slack
+            msg_text = ":alarm_clock: *Reminder:* {0}".format(reminder["message"])
+            url = "https://slack.com/api/chat.postMessage"
+            headers = {
+                "Authorization": "Bearer {0}".format(token),
+                "Content-Type": "application/json",
+            }
+            body = {
+                "channel": reminder["channel_id"],
+                "text": "<@{0}> {1}".format(reminder["user_id"], msg_text),
+                "blocks": [
+                    make_section_block("<@{0}> {1}".format(reminder["user_id"], msg_text))
+                ],
+            }
+            
+            ok, _, _ = await fetch_json(url, method="POST", headers=headers, body=json.dumps(body))
+            
+            # Mark as sent or failed
+            new_status = "sent" if ok else "failed"
+            update_query = "UPDATE reminders SET status = ? WHERE id = ?"
+            await env.DB.prepare(update_query).bind(new_status, reminder["id"]).run()
+            
+    except Exception as error:
+        log_exception_one_line(error, "cron_reminder_processing_error")
 
 
 def format_contributor_blocks(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -897,9 +982,50 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
             "text": summary,
             "blocks": [make_section_block(summary)],
         }
+    if command_name == "/setreminder":
+        # Expected format: message in X minutes
+        parts = command_text.rsplit(" in ", 1)
+        if len(parts) < 2:
+            usage = "Usage: `/setreminder <message> in <time>` (e.g., `/setreminder bug fix in 10 minutes`)"
+            return {
+                "response_type": "ephemeral",
+                "text": usage,
+                "blocks": [make_section_block(usage)],
+            }
+        
+        message = parts[0].strip()
+        time_str = "in " + parts[1].strip()
+        remind_at = parse_time_offset(time_str)
+        
+        if not remind_at:
+            error_msg = "I couldn't understand that time. Try 'in 5 minutes' or 'in 1 hour'."
+            return {
+                "response_type": "ephemeral",
+                "text": error_msg,
+                "blocks": [make_section_block(error_msg)],
+            }
+            
+        user_id = form.get("user_id", "")
+        channel_id = form.get("channel_id", "")
+        
+        ok = await store_reminder(user_id, channel_id, message, remind_at, env)
+        if ok:
+            confirm = ":white_check_mark: Reminder set! I'll notify you {0}.".format(time_str)
+            return {
+                "response_type": "ephemeral",
+                "text": confirm,
+                "blocks": [make_section_block(confirm)],
+            }
+        
+        return {
+            "response_type": "ephemeral",
+            "text": "Failed to save reminder to database.",
+            "blocks": [make_section_block("Failed to save reminder to database.")],
+        }
+
     if command_name == "/blt-app-url":
         return blt_app_url_response(env)
-    if command_name == "/blt":
+    elif command_name == "/blt":
         return help_response()
 
     return {
@@ -1153,3 +1279,10 @@ class Default(WorkerEntrypoint):
                 },
             )
             return build_response("Internal Server Error", status=500)
+
+    async def scheduled(self, event: Any) -> None:
+        """Handle the Cloudflare Cron Trigger (Runs every minute)."""
+        try:
+            await process_pending_reminders(self.env)
+        except Exception as error:
+            log_exception_one_line(error, "scheduled_cron_failed")

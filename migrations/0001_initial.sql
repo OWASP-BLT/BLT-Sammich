@@ -18,3 +18,13 @@ CREATE TABLE IF NOT EXISTS workspace_installations (
     installer_user_id TEXT NOT NULL,
     installed_at TEXT NOT NULL
 );
+-- Migration: Add Reminders Table
+CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    message TEXT NOT NULL,
+    remind_at INTEGER NOT NULL, -- Unix Timestamp
+    status TEXT DEFAULT 'pending' -- 'pending', 'sent', 'failed'
+);
+CREATE INDEX idx_reminders_status_time ON reminders (status, remind_at);

@@ -31,3 +31,6 @@ binding = "DB"
 database_name = "blt-sammich"
 database_id = "409b2fbf-ee3d-4204-a65d-c6994861a8ce"
 migrations_dir = "migrations"
+
+[triggers]
+crons = ["* * * * *"]
