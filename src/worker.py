@@ -368,6 +368,11 @@ def parse_time_offset(text: str) -> Optional[int]:
             return None
             
         value = int(parts[1])
+        
+        # Validation: Ensure the value is a positive integer
+        if value <= 0:
+            return None
+            
         unit = parts[2]
         
         seconds = 0
