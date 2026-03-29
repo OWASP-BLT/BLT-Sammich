@@ -20,7 +20,7 @@
 
 ### Core Commands
 
-#### `/contributors` 
+#### `/stats` or `/contributors` 
 **Status:** ✅ Standalone Feature (Not in main BLT)
 
 Displays contributor activity for the OWASP-BLT/Lettuce repository over the last 7 days.
@@ -129,7 +129,7 @@ BLT-Sammich is built with a modular plugin system:
 └─────────────────┬───────────────────────────────────┘
                   │
                   ├─ Standalone Commands ──────────────┐
-                  │  (/contributors, /ghissue,         │
+                  │  (/stats, /contributors, /ghissue, │
                   │   /project, /repo)                 │
                   │                                    │
                   v                                    v
@@ -197,7 +197,7 @@ Navigate to **OAuth & Permissions** and add these Bot Token Scopes:
 ### 6. Create Slash Commands
 
 Go to **Slash Commands** and create:
-- `/contributors` - URL: `https://your-server.com` (or use Socket Mode)
+- `/stats` or `/contributors` — URL: `https://your-server.com` (or use Socket Mode)
 - `/ghissue` - URL: `https://your-server.com`
 - `/project` - URL: `https://your-server.com`
 - `/repo` - URL: `https://your-server.com`
@@ -251,7 +251,7 @@ In your Slack workspace, try:
 
 This section documents each Slack command with purpose, example usage, and expected output.
 
-### /contributors
+### /stats or /contributors
 
 **Purpose:** Displays contributor activity for the OWASP-BLT/Lettuce repository over the last 7 days. Shows PRs merged, issues resolved, and comments made in a formatted table view.
 
@@ -309,10 +309,11 @@ This section documents each Slack command with purpose, example usage, and expec
 
 | Command | Description | Example | Available In |
 |---------|-------------|---------|--------------|
-| `/contributors` | Show recent contributor activity | `/contributors` | BLT-Sammich only |
+| `/stats` or `/contributors` | Show recent contributor activity | `/stats` | BLT-Sammich only |
 | `/ghissue [title]` | Create GitHub issue | `/ghissue Bug in login form` | BLT-Sammich only |
 | `/project [name]` | Find OWASP project info | `/project zap` | BLT-Sammich only |
 | `/repo [tech]` | Find repos by technology | `/repo python` | BLT-Sammich only |
+| `/setreminder [msg] in [time]` | Set a timed reminder | `/setreminder fix bug in 10m` | BLT-Sammich only |
 | `/discover [term]` | Search all OWASP repos | `/discover security` | Main BLT only |
 
 ## 🧑‍💻 Local Development
@@ -324,7 +325,7 @@ This section explains how to run the BLT-Sammich Slack bot locally for developme
 - **Python 3.10+** — [Download Python](https://www.python.org/downloads/)
 - **Poetry** — For dependency management. Install via: `pip install poetry` or [official installer](https://python-poetry.org/docs/#installation)
 - **Slack workspace** with admin access to create and configure a Slack app
-- **GitHub account** with a Personal Access Token (for `/ghissue` and `/contributors` commands)
+- **GitHub account** with a Personal Access Token (for `/ghissue` and `/stats` commands)
 
 ### Steps to Run Locally
 
@@ -376,7 +377,7 @@ The bot uses **Socket Mode**, so it connects to Slack without needing a public U
 | **`KeyError` when reading `.secrets`** | Ensure `.secrets` exists and contains all three variables: `SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GITHUB_TOKEN` |
 | **Bot not responding in Slack** | Verify the bot is installed in your workspace (Install App → Install to Workspace). Check that Socket Mode is enabled in your Slack app settings |
 | **`/ghissue` fails with "Failed to create issue"** | Verify your `GITHUB_TOKEN` has `repo` scope. Ensure the token is valid and not expired |
-| **`/contributors` returns "No data available"** | This is normal if there has been no activity in OWASP-BLT/Lettuce in the last 7 days |
+| **`/stats` returns "No data available"** | This is normal if there has been no activity in OWASP-BLT/Lettuce in the last 7 days |
 
 For running tests and code formatting, see the [Development](#-development) section.
 
@@ -384,7 +385,7 @@ For running tests and code formatting, see the [Development](#-development) sect
 
 ### Features Unique to BLT-Sammich
 ✅ **In BLT-Sammich Only:**
-- `/contributors` - GitHub activity tracking
+- `/stats` or `/contributors` - GitHub activity tracking
 - `/ghissue` - Issue creation from Slack
 - `/project` - OWASP projects database
 - `/repo` - Technology-based repository discovery

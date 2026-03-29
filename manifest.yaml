@@ -16,9 +16,13 @@ features:
       url: https://sammich.owaspblt.org/slack/commands/
       description: Guide to Contributing to OWASP Projects
       should_escape: false
+    - command: /contributors
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Show recent OWASP contributor activity
+      should_escape: false
     - command: /stats
       url: https://sammich.owaspblt.org/slack/commands/
-      description: Show OWASP project stats
+      description: Show recent OWASP contributor activity
       should_escape: false
     - command: /discover
       url: https://sammich.owaspblt.org/slack/commands/
@@ -41,6 +45,10 @@ features:
     - command: /blt-app-url
       url: https://sammich.owaspblt.org/slack/commands/
       description: Return the Slack app management URL
+      should_escape: false
+    - command: /setreminder
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Set a reminder (e.g., /setreminder bug fix in 10 minutes)
       should_escape: false
 oauth_config:
   redirect_urls:
