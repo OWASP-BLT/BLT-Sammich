@@ -701,29 +701,6 @@ async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
                 message = body.get("message") or str(body.get("errors", "Unknown error"))
                 
             return False, f"GitHub API Error: {status_code} - {message}"
-
-except Exception as e:
-    # Keep the except branch unchanged as per instructions
-    return False, f"Unexpected error: {str(e)}"
-            
-    except Exception as e:
-        return False, f"System Error: {str(e)}"
-        
-    url = f"https://api.github.com/repos/{owner}/{repo}/issues"
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer {0}".format(token),
-        "Content-Type": "application/json",
-        "User-Agent": "BLT-Sammich-Bot",
-    }
-    ok, payload, _ = await fetch_json(
-        url,
-        method="POST",
-        headers=headers,
-        body=json.dumps({"title": title.strip()}),
-    )
-    if not ok or not isinstance(payload, dict) or not payload.get("html_url"):
-        base_message = payload.get("message", "Unknown API error occurred.") if isinstance(payload, dict) else "Invalid API response."
         
         # GitHub often returns specific validation errors in an 'errors' array
         if isinstance(payload, dict) and "errors" in payload:
