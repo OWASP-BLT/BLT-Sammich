@@ -249,6 +249,11 @@ def chunked(items: List[str], size: int) -> List[List[str]]:
 def make_section_block(text: str) -> Dict[str, Any]:
     return {"type": "section", "text": {"type": "mrkdwn", "text": text}}
 
+def make_context_block(text: str) -> Dict[str, Any]:
+    return {
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": text}],
+    }
 
 def build_project_selection_blocks(project_names: List[str]) -> List[Dict[str, Any]]:
     if not project_names:
