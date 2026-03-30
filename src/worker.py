@@ -913,8 +913,7 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
                 "text": "Usage: /ghissue <title>",
                 "blocks": [
                     make_section_block("📝 Create GitHub Issue"),
-                    make_section_block("Usage: `/ghissue <title>`\n*Example:* `/ghissue Fix broken login button`"),
-                ],
+                    make_section_block("Usage: `/ghissue <title>`\n*Example:* `/ghissue Fix broken login button`"),                ],
             }
         ok, message = await create_github_issue(title, env)
         if not ok:
