@@ -684,8 +684,8 @@ async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
     }
     payload = {"title": title}
 
-    try:
-        ok, body, error_msg = await fetch_json(
+     try:
+        ok, body, status_code = await fetch_json(
             url, 
             method="POST", 
             headers=headers, 
@@ -696,7 +696,15 @@ async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
             issue_url = body.get("html_url")
             return True, issue_url
         else:
-            return False, f"GitHub API Error: {error_msg or 'Unknown Error'}"
+            message = "Unknown error"
+            if isinstance(body, dict):
+                message = body.get("message") or str(body.get("errors", "Unknown error"))
+                
+            return False, f"GitHub API Error: {status_code} - {message}"
+
+except Exception as e:
+    # Keep the except branch unchanged as per instructions
+    return False, f"Unexpected error: {str(e)}"
             
     except Exception as e:
         return False, f"System Error: {str(e)}"
