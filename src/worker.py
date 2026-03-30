@@ -249,6 +249,11 @@ def chunked(items: List[str], size: int) -> List[List[str]]:
 def make_section_block(text: str) -> Dict[str, Any]:
     return {"type": "section", "text": {"type": "mrkdwn", "text": text}}
 
+def make_context_block(text: str) -> Dict[str, Any]:
+    return {
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": text}],
+    }
 
 def build_project_selection_blocks(project_names: List[str]) -> List[Dict[str, Any]]:
     if not project_names:
@@ -451,7 +456,18 @@ def summarize_contributors(
     rows.sort(key=lambda row: (-row["total"], row["user"]))
     return rows
 
-
+def make_context_block(text: str) -> Dict[str, Any]:
+    """Helper to create a Slack context block for metadata or footnotes."""
+    return {
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": text
+            }
+        ]
+    }
+    
 async def fetch_json(
     url: str,
     method: str = "GET",
@@ -641,31 +657,62 @@ async def fetch_contributor_activity(env: Any) -> List[Dict[str, Any]]:
 
 
 async def create_github_issue(title: str, env: Any) -> Tuple[bool, str]:
-    token = env_value(env, "GITHUB_TOKEN")
+    """
+    Creates a GitHub issue with pre-flight normalization and validation.
+    Hardened to handle whitespace-only inputs and missing configuration (Fixes Finding 656-669).
+    """
+    # 1. Fetch and normalize environment variables (Null-safe trim)
+    token = (env_value(env, "GITHUB_TOKEN") or "").strip()
+    
+    # 2. Pre-flight validation for Configuration
     if not token:
-        return False, "Set GITHUB_TOKEN to enable /ghissue."
-
+        return False, "Configuration Error: GITHUB_TOKEN is missing or empty in the environment."
+    
+    # 3. Validate and trim the user-provided title
+    title = (title or "").strip()
+    if not title:
+        return False, "Issue title cannot be empty or consist only of whitespace."
+    
     try:
-        owner = required_env_value(env, "GITHUB_ISSUE_OWNER")
-        repo = required_env_value(env, "GITHUB_ISSUE_REPO")
-    except ValueError as error:
-        return False, str(error)
+        # 4. Fetch and normalize repo/owner info from required env values
+        owner = required_env_value(env, "GITHUB_ISSUE_OWNER").strip()
+        repo = required_env_value(env, "GITHUB_ISSUE_REPO").strip()
+    except (ValueError, AttributeError) as error:
+        return False, f"Configuration Error: {str(error)}. Please check your .secrets or Cloudflare settings."
 
-    url = "https://api.github.com/repos/{0}/{1}/issues".format(owner, repo)
+    # 5. Execute API Call
+    url = f"https://api.github.com/repos/{owner}/{repo}/issues"
     headers = {
-        "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer {0}".format(token),
-        "Content-Type": "application/json",
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "OWASP-BLT-Sammich-Bot"
     }
-    ok, payload, _ = await fetch_json(
-        url,
-        method="POST",
-        headers=headers,
-        body=json.dumps({"title": title}),
-    )
-    if not ok or not payload.get("html_url"):
-        message = payload.get("message") or "GitHub issue creation failed."
-        return False, message
+    payload = {"title": title}
+
+     try:
+        ok, body, status_code = await fetch_json(
+            url, 
+            method="POST", 
+            headers=headers, 
+            body=json.dumps(payload)
+        )
+        
+        if ok and body:
+            issue_url = body.get("html_url")
+            return True, issue_url
+        else:
+            message = "Unknown error"
+            if isinstance(body, dict):
+                message = body.get("message") or str(body.get("errors", "Unknown error"))
+                
+            return False, f"GitHub API Error: {status_code} - {message}"
+        
+        # GitHub often returns specific validation errors in an 'errors' array
+        if isinstance(payload, dict) and "errors" in payload:
+            error_details = ", ".join([e.get("message", e.get("code", str(e))) for e in payload["errors"] if isinstance(e, dict)])
+            if error_details:
+                base_message = f"{base_message} Details: {error_details}"
+        return False, f"GitHub issue creation failed: {base_message}"
     return True, str(payload["html_url"])
 
 
@@ -803,8 +850,15 @@ def project_response(text: str) -> Dict[str, Any]:
 
 
 def repo_response(text: str) -> Dict[str, Any]:
-    technology = text.strip().lower()
+    """
+    Handles the /repo command with hardened input normalization 
+    and multi-stage lookup (Direct -> Similar -> Selection).
+    """
+    # Finding Fix: Standardized normalization with null-safe check
+    technology = (text or "").strip().lower()
+
     if technology:
+        # 1. Attempt Direct Match
         detail = make_repo_detail(technology)
         if detail:
             return {
@@ -812,27 +866,35 @@ def repo_response(text: str) -> Dict[str, Any]:
                 "text": detail,
                 "blocks": [make_section_block(detail)],
             }
+            
+        # 2. Attempt Fuzzy/Similar Matches
         matches = search_repo_technologies(technology)
         if matches:
             return {
                 "response_type": "ephemeral",
                 "text": "Technology not found. Similar matches are available.",
                 "blocks": [
-                    make_section_block("Similar technologies:\n" + "\n".join(matches))
+                    make_section_block("⚠️ *Technology not found.* Similar matches:"),
+                    make_section_block("\n".join([f"• `{m}`" for m in matches]))
                 ],
             }
+            
+        # 3. No matches found
         return {
             "response_type": "ephemeral",
             "text": "Technology not found.",
-            "blocks": [make_section_block("Technology not found.")],
+            "blocks": [
+                make_section_block("❌ *Technology not found.*"),
+                make_context_block("Try searching for a different stack like 'MERN' or 'Kotlin'.")
+            ],
         }
 
+    # 4. Default state: Show the selection menu
     return {
         "response_type": "ephemeral",
         "text": "Choose a technology to inspect.",
         "blocks": build_repo_selection_blocks(REPO_DATA),
     }
-
 
 async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
     command_name = form.get("command", "")
@@ -851,26 +913,31 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
     if command_name == "/ghissue":
         title = command_text.strip()
         if not title:
-            return {
+           return {
                 "response_type": "ephemeral",
                 "text": "Usage: /ghissue <title>",
-                "blocks": [make_section_block("Usage: `/ghissue <title>`")],
+                "blocks": [
+                    make_section_block("📝 Create GitHub Issue"),
+                    make_section_block("Usage: `/ghissue <title>`\n*Example:* `/ghissue Fix broken login button`"),                ],
             }
         ok, message = await create_github_issue(title, env)
-        if ok:
+        if not ok:
             return {
                 "response_type": "ephemeral",
-                "text": "Issue created successfully: {0}".format(message),
+                "text": f"Error: {message}",
                 "blocks": [
-                    make_section_block(
-                        "Issue created successfully:\n{0}".format(message)
-                    )
+                    make_section_block("⚠️ Issue Creation Failed"),
+                    make_section_block(f"Something went wrong while communicating with GitHub:\n\n*{message}*"),
+                    make_context_block("Please contact an admin if this error persists.")
                 ],
             }
         return {
             "response_type": "ephemeral",
-            "text": message,
-            "blocks": [make_section_block(message)],
+            "text": f"Issue created successfully: {message}",
+            "blocks": [
+                make_section_block("✅ Issue Created"),
+                make_context_block(f"Successfully created your issue on GitHub:\n<{message}|View Issue on GitHub>")
+            ],
         }
     if command_name == "/project":
         return project_response(command_text)
@@ -899,7 +966,7 @@ async def command_response(form: Dict[str, str], env: Any) -> Dict[str, Any]:
         }
     if command_name == "/blt-app-url":
         return blt_app_url_response(env)
-    if command_name == "/blt":
+    if command_name in ("/blt", "/help"):
         return help_response()
 
     return {

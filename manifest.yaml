@@ -18,7 +18,7 @@ features:
       should_escape: false
     - command: /stats
       url: https://sammich.owaspblt.org/slack/commands/
-      description: Show OWASP project stats
+      description: Show recent OWASP contributor activity
       should_escape: false
     - command: /discover
       url: https://sammich.owaspblt.org/slack/commands/
@@ -34,6 +34,10 @@ features:
       url: https://sammich.owaspblt.org/slack/commands/
       description: On development
       should_escape: false
+    - command: /help
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Show help menu and documentation
+      should_escape: false
     - command: /installed_apps
       url: https://sammich.owaspblt.org/slack/commands/
       description: List installed apps
@@ -41,6 +45,25 @@ features:
     - command: /blt-app-url
       url: https://sammich.owaspblt.org/slack/commands/
       description: Return the Slack app management URL
+      should_escape: false
+    - command: /ghissue
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Create GitHub issue
+      usage_hint: "[title]"
+      should_escape: false
+    - command: /project
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Get project info
+      usage_hint: "[name]"
+      should_escape: false
+    - command: /repo
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Get repo info
+      usage_hint: "[technology]"
+      should_escape: false
+    - command: /contributors
+      url: https://sammich.owaspblt.org/slack/commands/
+      description: Show recent OWASP contributor activity
       should_escape: false
 oauth_config:
   redirect_urls:

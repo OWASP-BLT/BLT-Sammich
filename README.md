@@ -89,24 +89,23 @@ Searches and browses OWASP repositories.
 
 **Why not in BLT-Sammich?** This feature was developed directly in the main BLT repository as part of the integration.
 
-### Plugins Architecture
+### 🏗️ Bot Architecture
+`BLT-Sammich` is built as a unified Cloudflare Worker. All core logic is orchestrated through a high-performance entry point (`src/worker.py`). This architecture is optimized for the edge runtime, ensuring minimal latency and high availability across the global OWASP community.
 
-BLT-Sammich is built with a modular plugin system:
+#### 🧩 Integrated Logic Modules
 
-1. **Contributors Plugin** (`src/sammich/plugins/contributors.py`)
-   - Fetches GitHub data via REST API
-   - Formats contributor statistics
-   - Displays activity in formatted tables
-
-2. **Project Plugin** (`src/sammich/plugins/project.py`)
-   - Manages OWASP project database
-   - Handles pagination for large datasets
-   - Interactive Slack components
-
-3. **Reminder Plugin** (`src/sammich/plugins/reminder.py`)
-   - Schedule messages to channels
-   - Parse natural language time expressions
-   - Supports recurring reminders (Note: Currently not integrated in app.py)
+* **Contributor Activity Handler** (`src/worker.py`)
+    * Fetches real-time GitHub activity data via the REST API.
+    * Aggregates and formats contributor statistics into rich Slack tables and Block Kit responses.
+* **OWASP Project Discovery** (`src/worker.py`)
+    * Manages the curated database of over 800+ OWASP projects.
+    * Handles high-speed searching and interactive pagination directly in the Slack UI.
+* **GitHub Issue Integration** (`src/worker.py`)
+    * Provides hardened logic for creating community issues directly from Slack slash commands.
+    * Includes pre-flight environment validation and detailed API error reporting for a "production-grade" developer experience.
+* **Edge-Native Reminders** (`src/worker.py`)
+    * **[NEW]** Leverages **Cloudflare Cron Triggers** and **D1 SQL** for persistent, scheduled user alerts.
+    * Features a natural language time parser for intuitive user interaction.
 
 ### Data Files
 
@@ -116,34 +115,29 @@ BLT-Sammich is built with a modular plugin system:
 ## 🏗️ Architecture
 
 ### Tech Stack
-- **Framework:** Slack Bolt for Python
-- **GitHub Integration:** PyGithub library
-- **Environment Management:** python-dotenv
-- **Build System:** Poetry for dependency management
+- **Edge Runtime:** Cloudflare Python Workers (Pyodide) - A zero-dependency, event-driven model that runs Python natively in the V8 engine
+- **Database:** Cloudflare D1 (Serverless SQLite)
+- **GitHub Integration:** Edge-compatible REST requests
+- **Deployment & Testing:** Wrangler (`npx wrangler`) 
 
 ### How It Connects to Main BLT
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
-│                   User in Slack                     │
+│                  User in Slack                      │
 └─────────────────┬───────────────────────────────────┘
-                  │
-                  ├─ Standalone Commands ──────────────┐
-                  │  (/contributors, /ghissue,         │
-                  │   /project, /repo)                 │
-                  │                                    │
-                  v                                    v
-         ┌────────────────────┐            ┌──────────────────┐
-         │   BLT-Sammich Bot  │            │   Main BLT Bot   │
-         │  (This Repository) │            │  (/discover)     │
-         └─────────┬──────────┘            └────────┬─────────┘
-                   │                                │
-                   v                                v
-         ┌─────────────────────┐          ┌─────────────────┐
-         │   GitHub API         │          │  OWASP GitHub   │
-         │   OWASP-BLT/Lettuce │          │  Organization   │
-         └─────────────────────┘          └─────────────────┘
-```
+                  │ (Slash Commands via Webhooks)
+                  v
+         ┌────────────────────┐
+         │ Cloudflare Worker  │  <-- Python (Pyodide)
+         │   (BLT-Sammich)    │      Zero-Dependency
+         └─┬────────────────┬─┘      Event-Driven
+           │                │
+           v                v
+  ┌────────────────┐ ┌─────────────────────┐
+  │ Cloudflare D1  │ │     GitHub API      │
+  │ (Local SQLite) │ │ OWASP-BLT/Lettuce   │
+  └────────────────┘ └─────────────────────┘
 
 **Key Connections:**
 - Both bots interact with GitHub APIs independently
@@ -153,99 +147,7 @@ BLT-Sammich is built with a modular plugin system:
 
 ## 🚀 Setup
 
-### Prerequisites
-- Python 3.10+
-- Poetry (for dependency management)
-- Slack workspace with admin access
-- GitHub account and token
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/OWASP-BLT/BLT-Sammich.git
-cd BLT-Sammich
-```
-
-### 2. Install Dependencies
-```bash
-poetry install
-```
-
-### 3. Create Slack App
-
-1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
-2. Click "Create New App" → "From scratch"
-3. Name your app (e.g., "BLT-Sammich Dev") and select your workspace
-
-### 4. Configure Slack App Permissions
-
-Navigate to **OAuth & Permissions** and add these Bot Token Scopes:
-- `commands` - Create and handle slash commands
-- `chat:write` - Send messages
-- `users:read` - Read user information
-- `channels:read` - View channels
-- `groups:read` - View private channels
-- `im:read` - View direct messages
-- `mpim:read` - View group direct messages
-
-### 5. Enable Socket Mode
-
-1. Go to **Socket Mode** in your app settings
-2. Enable Socket Mode
-3. Generate an App-Level Token with `connections:write` scope
-4. Save the token (starts with `xapp-`)
-
-### 6. Create Slash Commands
-
-Go to **Slash Commands** and create:
-- `/contributors` - URL: `https://your-server.com` (or use Socket Mode)
-- `/ghissue` - URL: `https://your-server.com`
-- `/project` - URL: `https://your-server.com`
-- `/repo` - URL: `https://your-server.com`
-
-### 7. Install App to Workspace
-
-1. Go to **Install App**
-2. Click "Install to Workspace"
-3. Authorize the requested permissions
-4. Save the Bot User OAuth Token (starts with `xoxb-`)
-
-### 8. Configure Environment Variables
-
-Create a `.secrets` file in the project root:
-```bash
-cp .secrets.sample .secrets
-```
-
-Edit `.secrets` with your credentials:
-```bash
-SLACK_APP_TOKEN=xapp-your-app-level-token
-SLACK_BOT_TOKEN=xoxb-your-bot-user-oauth-token
-GITHUB_TOKEN=ghp_your-github-personal-access-token
-```
-
-**Getting a GitHub Token:**
-1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Generate new token with `repo` and `user` scopes
-3. Copy the token to your `.secrets` file
-
-### 9. Run the Bot
-```bash
-poetry run python app.py
-```
-
-You should see:
-```
-⚡️ Bolt app is running!
-```
-
-### 10. Test the Bot
-
-In your Slack workspace, try:
-```
-/contributors
-/project
-/repo python
-```
+For initial setup and local development instructions, see the **[Local Development](#-local-development)** section below.
 
 ## 📚 Slack Commands
 
@@ -314,32 +216,36 @@ This section documents each Slack command with purpose, example usage, and expec
 | `/project [name]` | Find OWASP project info | `/project zap` | BLT-Sammich only |
 | `/repo [tech]` | Find repos by technology | `/repo python` | BLT-Sammich only |
 | `/discover [term]` | Search all OWASP repos | `/discover security` | Main BLT only |
+| `/help [term]` | Show help menu | `/help` | BLT-Sammich only |
+
 
 ## 🧑‍💻 Local Development
 
-This section explains how to run the BLT-Sammich Slack bot locally for development and testing.
+This section explains how to run the BLT-Sammich Slack bot locally for development and testing using the Cloudflare Workers ecosystem.
 
 ### Prerequisites
 
+- **Node.js & npm** - [Download Node.js](https://nodejs.org/en/download/). This is required to run Wrangler.
+- **Slack workspace** with admin access to create and configure a Slack app.
+- **GitHub account**
+with a Personal Access Token (for `/ghissue` and `/contributors` commands)
 - **Python 3.10+** — [Download Python](https://www.python.org/downloads/)
-- **Poetry** — For dependency management. Install via: `pip install poetry` or [official installer](https://python-poetry.org/docs/#installation)
-- **Slack workspace** with admin access to create and configure a Slack app
-- **GitHub account** with a Personal Access Token (for `/ghissue` and `/contributors` commands)
+- **Wrangler** - CLI for developing, testing, and deploying Cloudflare Workers. Install via: `npm install -g wrangler`
 
-### Steps to Run Locally
-
-**1. Clone the repository**
+### Steps to run locally
+**1.Clone the repository**
 ```bash
 git clone https://github.com/OWASP-BLT/BLT-Sammich.git
 cd BLT-Sammich
 ```
 
-**2. Install dependencies**
+**2. Configure Local Database (D1)**
+Before running the bot, you must initialize the local D1 database schema:
 ```bash
-poetry install
+npx wrangler d1 execute blt-sammich --local --file=migrations/0001_initial.sql
 ```
 
-**3. Configure environment variables**
+### 3. Configure environment variables <a name="env-vars"></a>
 
 Create a `.secrets` file in the project root (copy from the sample):
 ```bash
@@ -357,25 +263,26 @@ GITHUB_TOKEN=ghp_your-github-personal-access-token
 
 **4. Start the bot**
 ```bash
-poetry run python app.py
+npx wrangler dev
 ```
 
 You should see:
-```
-⚡️ Bolt app is running!
+```text
+⎔ Starting local server...
+[wrangler:info] Ready on http://127.0.0.1:8787
 ```
 
-The bot uses **Socket Mode**, so it connects to Slack without needing a public URL. You can run it entirely on your local machine.
+The bot uses **Cloudflare Workers** natively. For local development, `wrangler dev` creates a local server, but to test Slack commands and webhooks, you must expose your local server using a tunnel like **ngrok** or **cloudflared** (see Troubleshooting).
 
 ### Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| **`poetry: command not found`** | Install Poetry: `pip install poetry` or use the [official installer](https://python-poetry.org/docs/#installation) |
-| **`ModuleNotFoundError` or import errors** | Run `poetry install` to ensure all dependencies are installed |
+| **`wrangler: command not found`** | Install Wrangler: `npm install -g wrangler` or use `npx wrangler` |
+| **`Resource location: local` Error** | Ensure you've run the `d1 execute` command to create the local database first |
 | **`KeyError` when reading `.secrets`** | Ensure `.secrets` exists and contains all three variables: `SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GITHUB_TOKEN` |
-| **Bot not responding in Slack** | Verify the bot is installed in your workspace (Install App → Install to Workspace). Check that Socket Mode is enabled in your Slack app settings |
-| **`/ghissue` fails with "Failed to create issue"** | Verify your `GITHUB_TOKEN` has `repo` scope. Ensure the token is valid and not expired |
+| **Bot not responding in Slack** | Verify the bot is installed in your workspace. Check that the Request URL in Slack points to your local tunnel (if testing webhooks) |
+| **`/ghissue` fails with "Failed to create issue"** | Verify your `GITHUB_TOKEN` has `repo` scope and the correct owner/repo is set in `.secrets` |
 | **`/contributors` returns "No data available"** | This is normal if there has been no activity in OWASP-BLT/Lettuce in the last 7 days |
 
 For running tests and code formatting, see the [Development](#-development) section.
@@ -418,21 +325,17 @@ For running tests and code formatting, see the [Development](#-development) sect
 ## 🛠️ Development
 
 ### Project Structure
-```
+```text
 BLT-Sammich/
-├── app.py                    # Main bot application
+├── wrangler.toml         # Cloudflare Worker configuration
 ├── src/
-│   ├── settings.py          # Configuration
-│   └── sammich/
-│       └── plugins/         # Bot plugins
-│           ├── contributors.py  # GitHub activity tracking
-│           ├── project.py       # OWASP project lookup
-│           └── reminder.py      # Message scheduling (WIP)
+│   └── worker.py         # Main bot application (Pyodide)
 ├── data/
-│   ├── projects.json        # OWASP projects database
+│   ├── projects.json     # OWASP projects database
 │   └── repos.json          # Technology repository mapping
-├── tests/                   # Unit tests
-└── pyproject.toml          # Poetry dependencies
+├── migrations/           # D1 database schema
+├── public/               # Static assets
+└── tests/                # Unit tests
 ```
 
 ### Running Tests
